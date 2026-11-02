@@ -1,0 +1,11 @@
+# Track only .py and .md files (plus requirements.txt); ignore everything else.
+*
+!*/
+!*.py
+!*.md
+!.gitignore
+!requirements.txt
+
+# Never track data or downloaded model/adapter artifacts.
+data/
+model/
