@@ -10,3 +10,6 @@ accelerate
 boto3
 wandb
 python-dotenv
+tqdm
+numpy
+sentence-transformers
