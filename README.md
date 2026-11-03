@@ -11,6 +11,7 @@ Implementation of the FACET citation-ranking work from the FACE corpus, the pipe
 Both models are LoRA adapters attached to a single 4-bit
 `Qwen/Qwen2.5-7B-Instruct` base model.
 
+
 Downstream steps then score each M→R pair and compare FACET against
 retrieval baselines:
 
@@ -20,6 +21,73 @@ prediction.qwen_embedding  (adds aspect_similarity, in place)       M~R similari
 utils.facet_scoring      -> data/facet_scores/<m_id>.json           FACET relevance score per R
 baseline_main            -> data/baselines/<m_id>_bl.json           FACET vs. BM25 / SPECTER2 / SciNCL / SciBERT / Qwen3
 ```
+
+## FACE Dataset
+
+Download FACE dataset (FACE-Abstract, FACE-Context and FACE-Full) from
+[Google Drive](https://drive.google.com/drive/folders/1OYWVjBXG24lpQ8Aa_nwy2onlWxtmb5yz?usp=drive_link).
+
+A main paper (M) cites a set of reference papers (R). `FACE_index.json`, at
+the top level, is the index that ties everything else together:
+
+```json
+{
+  "<m_id>": ["<r_id>", "<r_id>", ...],
+  ...
+}
+```
+
+Look up an M id to get the list of R ids it cites. Every id elsewhere in
+this dataset (filenames, JSONL records) refers back to this same id space.
+
+There are three variants of the same M/R pairs, differing only in how much
+text is included per paper:
+
+### FACE-Full
+
+Full raw paper records (title, abstract, sections, bibliography, metadata)
+for **both M and R papers together**, no distinction between the two roles.
+
+- `paper_ids.txt` — one id per line, M ids first, then R ids (an id already
+  listed as an M is not repeated in the R section).
+- `papers_batch_NN.zip` — several zips, each containing one `<id>.json` file
+  per paper (the raw record). Old-style arXiv ids that contain a `/`
+  (e.g. `hep-th/0612132`) are stored with the `/` replaced by `_` in the
+  filename — the id inside `FACE_index.json` always keeps the original `/`.
+  A given paper's record lives in exactly one of these zips; check each in
+  turn (or build a lookup from `paper_ids.txt`'s order) to find it.
+
+### FACE-Context
+
+Full text for M, lighter weight for R — the typical "M in full, R by
+abstract" setup for context-aware citation ranking.
+
+- `M_full_text.zip` — one `<id>.json` full record per M paper (same schema
+  as FACE-Full).
+- `r_title_abstract.jsonl.gz` — one JSON object per line per R paper:
+  `{"id": ..., "title": ..., "abstract": ...}`.
+
+### FACE-Abstract
+
+Title + abstract only, for both roles — the lightest variant.
+
+- `m_title_abstract.jsonl.gz` — `{"id", "title", "abstract"}` per M paper.
+- `r_title_abstract.jsonl.gz` — `{"id", "title", "abstract"}` per R paper
+  (identical content to the one in FACE-Context).
+
+### Typical access pattern
+
+1. Load `FACE_index.json` to get `{m_id: [r_id, ...]}`.
+2. Pick an `m_id`, read its M record from whichever variant you need
+   (`FACE-Full`'s zips, `FACE-Context/M_full_text.zip`, or
+   `FACE-Abstract/m_title_abstract.jsonl.gz`).
+3. For each `r_id` under that `m_id`, read its R record the same way from
+   the matching variant.
+
+Across all three folders, R ids that are not ground-truth-missing cover the
+full `FACE_index.json` reference set — a lookup should never come up empty
+unless the id was genuinely unavailable from the source corpus.
+
 
 ## Requirements
 
